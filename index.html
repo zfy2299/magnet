@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>magnet</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+  <script>
+    const secScript = document.createElement("script")
+    const old = document.getElementsByTagName("script")[0]
+    secScript.setAttribute("type", "text/javascript")
+    secScript.setAttribute("src", "./links.js?t=" + new Date().getTime())
+    old.parentNode.insertBefore(secScript, old)
+  </script>
+</head>
+<body>
+<div id="app" class="full-wh">
+  <div class="full-wh">
+    <div style="display: flex; margin-bottom: 10px;">
+      <label>
+        搜索:
+        <input type="text" v-model="keyword">
+      </label>
+      <label style="margin-left: 10px;">
+        <select v-model="sortMethod">
+          <option value="0">不排序</option>
+          <option value="1">资源名</option>
+          <option value="2">关键词</option>
+        </select>
+      </label>
+    </div>
+    <div style="display: flex; flex-direction: column; width: 1400px;">
+      <div style="display: flex;" class="table-head">
+        <div style="width: 120px;">资源名</div>
+        <div style="width: 400px;">预览图</div>
+        <div style="flex: 1;">链接</div>
+        <div style="width: 100px;">关键词</div>
+        <div style="width: 100px;">不得行</div>
+      </div>
+      <div style="display: flex; flex-direction: column; max-height: calc(100vh - 100px); overflow-y: auto;">
+        <div v-for="(item, index) in tableDataAfter" :key="index"
+             style="display: flex; padding: 4px 0; background-color: #deefff; border-bottom: 2px solid #929292;">
+          <div style="width: 120px; justify-content: center; align-items: center; display: flex;">
+            <span>{{ item.name }}</span>
+          </div>
+          <div style="width: 400px;">
+            <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+              <img v-if="item.img !== ''"
+                   v-bind:src="item.img" alt="加载失败"
+                   @click="showImage(item.img)"
+                   style="max-height: 200px; max-width: 300px;">
+              <span v-else>没有预览</span>
+            </div>
+          </div>
+          <div style="flex: 1; align-items: center; display: flex;">
+            <div>
+              <div v-for="link in item.magnet" style="padding: 4px 0;">
+                <a v-if="link !== ''" :href="link">{{ link }}</a>
+                <span v-if="link !== ''" class="copy-btn" @click="copyLink(link)">复制</span>
+              </div>
+            </div>
+          </div>
+          <div style="width: 100px; justify-content: center; align-items: center; display: flex;">
+            <span style="user-select: none;" @click="copyLink(item.key)">{{ item.key }}</span>
+          </div>
+          <div style="width: 80px; justify-content: center; align-items: center; display: flex;">
+            <div @click="addMark(item.name)" style="width: 50px; height: 30px; border: 1px solid #b3b3b3;"
+                 :style="{backgroundColor: badMark[item.name] ? '#f00' : '#ccc'}"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-if="modelVisible"
+       @click="modelVisible = false"
+       style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 100; background-color: rgba(0,0,0,0.29); display: flex; justify-content: center; align-items: center;">
+    <img :src="bigImage" alt="加载失败" style="max-height: 90vh; max-width: 100vw; user-select: none;">
+  </div>
+</div>
+
+<script>
+  new Vue({
+    el: '#app',
+    data: {
+      message: 'Hello Vue!',
+      tableData: [{
+        name: '不知道名字',
+        img: '',
+        magnet: ['magnet:?xt=urn:btih:45EB471AA27F61D059141CFB45F1E6B22D28566C']
+      }],
+      keyword: '',
+      sortMethod: '0',
+      badMark: {},
+      modelVisible: false,
+      bigImage: ''
+    },
+    computed: {
+      tableDataAfter() {
+        const temp = this.tableData.filter(item => JSON.stringify(item).toLowerCase().includes(this.keyword.toLowerCase())).sort((s1, s2) => {
+          if (this.sortMethod === '1') return s1.name.localeCompare(s2.name, 'zh-CN')
+          else if (this.sortMethod === '2') return s1.key.localeCompare(s2.key, 'zh-CN')
+          else return 0
+        })
+        return temp
+      }
+    },
+    mounted() {
+      let mark = localStorage.getItem('qualityMark')
+      if (mark !== null) {
+        this.badMark = JSON.parse(mark)
+      }
+      setTimeout(() => {
+        this.tableData = magnetLinks
+      }, 1000)
+      // fetch('./links.js').then(res => {
+      //   console.log(res.body.getReader())
+      //   console.log(res.json())
+      // }).catch(err => {
+      //   console.error(err)
+      // })
+    },
+    methods: {
+      copyLink(value) {
+        const save = function (e) {
+          e.clipboardData.setData('text/plain', value);//下面会说到clipboardData对象
+          e.preventDefault();//阻止默认行为
+        }
+        document.addEventListener('copy', save);
+        document.execCommand("copy"); //使文档处于可编辑状态，否则无效
+      },
+      addMark(name) {
+        if (this.badMark[name] === undefined) {
+          this.badMark[name] = true
+        } else {
+          delete this.badMark[name]
+        }
+        localStorage.setItem('qualityMark', JSON.stringify(this.badMark))
+        this.badMark = {...this.badMark}
+      },
+      showImage(img) {
+        this.bigImage = img
+        this.modelVisible = true
+      }
+    }
+  })
+</script>
+<style>
+    * {
+        padding: 0;
+        margin-left: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        width: 100vw;
+        height: 100vh;
+    }
+
+    .full-wh {
+        width: 100%;
+        height: 100%;
+    }
+
+
+    .copy-btn {
+        user-select: none;
+        padding: 0 3px;
+        border: 1px solid #000000;
+        background-color: antiquewhite;
+        cursor: pointer;
+    }
+
+    .copy-btn:hover {
+        background-color: #54b3b6;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .table-head {
+        display: flex;
+    }
+
+    .table-head > div {
+        background-color: #54b3b6;
+        color: black;
+        font-weight: bold;
+        text-align: center;
+        border-left: 1px solid #fff;
+        border-right: 1px solid #fff;
+    }
+</style>
+</body>
+</html>
